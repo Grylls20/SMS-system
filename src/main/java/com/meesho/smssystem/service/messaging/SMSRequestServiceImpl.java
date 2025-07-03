@@ -20,6 +20,9 @@ import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import com.meesho.smssystem.util.TwilioSMSService;
+import com.meesho.smssystem.util.EmailService;
+
 
 import java.util.Optional;
 
@@ -35,28 +38,33 @@ public class SMSRequestServiceImpl implements ISMSRequestService {
     private final CacheSMSEntries cacheSMSEntries;
 
     private final ProducerService producerService;
+    private final EmailService emailService;
 
     private static final Logger logger = LogManager.getLogger(SMSRequestServiceImpl.class);
 
     @Autowired
-    public SMSRequestServiceImpl(ISMSRequestRepository ismsRequestRepository , IBlacklistReposiotry iBlacklistReposiotry , CacheBlacklistEntries cacheBlacklistEntries, ProducerService producerService , CacheSMSEntries cacheSMSEntries , SearchEngineRepository searchEngineRepository) {
+    public SMSRequestServiceImpl(ISMSRequestRepository ismsRequestRepository , IBlacklistReposiotry iBlacklistReposiotry , CacheBlacklistEntries cacheBlacklistEntries, ProducerService producerService , CacheSMSEntries cacheSMSEntries , SearchEngineRepository searchEngineRepository, EmailService emailService) {
         this.ismsRequestRepository = ismsRequestRepository;
         this.iBlacklistReposiotry = iBlacklistReposiotry;
         this.cacheBlacklistEntries = cacheBlacklistEntries;
         this.producerService = producerService;
         this.cacheSMSEntries = cacheSMSEntries;
         this.searchEngineRepository = searchEngineRepository;
+        this.emailService = emailService;
     }
 
     @Override
     public SendSMSResponse sendSMSProcess(SendSMSRequest smsRequest) {
-        SendSMSResponse sendSMSResponse;
-        SMSRecord smsRecord;
-        boolean isBlacklisted = cacheBlacklistEntries.isPresentInCache(smsRequest.getPhone_number());
-        if (!isBlacklisted) {
-            if (iBlacklistReposiotry.getByPhoneNumber(smsRequest.getPhone_number()) != null) {
-                cacheBlacklistEntries.insertToCache(smsRequest.getPhone_number());
-                isBlacklisted = true;
+        SendSMSResponse sendSMSResponse = null;
+        SMSRecord smsRecord = null;
+        boolean isBlacklisted = false;
+        if (smsRequest.getDeliveryChannel() == SendSMSRequest.DeliveryChannel.SMS || smsRequest.getDeliveryChannel() == SendSMSRequest.DeliveryChannel.BOTH) {
+            isBlacklisted = cacheBlacklistEntries.isPresentInCache(smsRequest.getPhone_number());
+            if (!isBlacklisted) {
+                if (iBlacklistReposiotry.getByPhoneNumber(smsRequest.getPhone_number()) != null) {
+                    cacheBlacklistEntries.insertToCache(smsRequest.getPhone_number());
+                    isBlacklisted = true;
+                }
             }
         }
 
@@ -64,14 +72,32 @@ public class SMSRequestServiceImpl implements ISMSRequestService {
             smsRecord = getSmsRecordEntityAfterSave(smsRequest, Constants.MsgStatus.FAIL, Constants.FailureCode.NUMBER_BLACKLISTED);
             sendSMSResponse = getSendSMSResponseBySMSRecord(smsRecord, HttpStatus.FORBIDDEN);
         } else {
-            logger.info(smsRequest.getPhone_number() + " is not blacklisted");
-            smsRecord = getSmsRecordEntityAfterSave(smsRequest, Constants.MsgStatus.IN_QUEUE, null);
-            logger.info("Putting Message request in Queue");
-            sendSMSResponse = getSendSMSResponseBySMSRecord(smsRecord, HttpStatus.CREATED);
-            producerService.sendRequest(smsRecord.getId());
+            if (smsRequest.getDeliveryChannel() == SendSMSRequest.DeliveryChannel.EMAIL) {
+                emailService.sendEmail(smsRequest.getEmail(), "Notification", smsRequest.getMessage());
+                sendSMSResponse = SendSMSResponse.builder()
+                        .reqId(null)
+                        .comments("Email sent successfully.")
+                        .httpStatus(HttpStatus.CREATED)
+                        .build();
+            } else if (smsRequest.getDeliveryChannel() == SendSMSRequest.DeliveryChannel.SMS) {
+                smsRecord = getSmsRecordEntityAfterSave(smsRequest, Constants.MsgStatus.IN_QUEUE, null);
+                logger.info("Putting Message request in Queue");
+                sendSMSResponse = getSendSMSResponseBySMSRecord(smsRecord, HttpStatus.CREATED);
+                producerService.sendRequest(smsRecord.getId());
+            } else if (smsRequest.getDeliveryChannel() == SendSMSRequest.DeliveryChannel.BOTH) {
+                smsRecord = getSmsRecordEntityAfterSave(smsRequest, Constants.MsgStatus.IN_QUEUE, null);
+                producerService.sendRequest(smsRecord.getId());
+                emailService.sendEmail(smsRequest.getEmail(), "Notification", smsRequest.getMessage());
+                sendSMSResponse = getSendSMSResponseBySMSRecord(smsRecord, HttpStatus.CREATED);
+            } else {
+                // Default to SMS
+                smsRecord = getSmsRecordEntityAfterSave(smsRequest, Constants.MsgStatus.IN_QUEUE, null);
+                logger.info("Putting Message request in Queue");
+                sendSMSResponse = getSendSMSResponseBySMSRecord(smsRecord, HttpStatus.CREATED);
+                producerService.sendRequest(smsRecord.getId());
+            }
         }
         return sendSMSResponse;
-
     }
 
     @Override

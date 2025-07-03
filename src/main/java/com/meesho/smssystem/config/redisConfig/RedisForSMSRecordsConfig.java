@@ -44,4 +44,13 @@ public class RedisForSMSRecordsConfig {
         redisTemplate.setValueSerializer(new GenericJackson2JsonRedisSerializer());
         return redisTemplate;
     }
+
+    @Bean
+    public RedisTemplate<Object, Object> redisTemplate() {
+        RedisTemplate<Object, Object> template = new RedisTemplate<>();
+        template.setConnectionFactory(redisConnectionFactoryForSMSRecordsCache());
+        template.setKeySerializer(new StringRedisSerializer());
+        template.setValueSerializer(new GenericJackson2JsonRedisSerializer());
+        return template;
+    }
 }

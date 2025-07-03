@@ -103,6 +103,12 @@
             });
         }
         async function sendRequest(data) {
+            // Remove undefined or empty fields
+            Object.keys(data).forEach(key => {
+                if (data[key] === undefined || data[key] === null || data[key] === '') {
+                    delete data[key];
+                }
+            });
             try {
                 const res = await fetch('/v1/sms/send', {
                     method: 'POST',

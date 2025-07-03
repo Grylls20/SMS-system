@@ -9,6 +9,8 @@ import com.meesho.smssystem.dtos.response.smsresponse.SendSMSResponse;
 import com.meesho.smssystem.dtos.response.smsresponse.getsmsbyidresponse.GetSMSByIdResponse;
 import com.meesho.smssystem.service.authentication.AuthenticationService;
 import com.meesho.smssystem.service.messaging.ISMSRequestService;
+import com.meesho.smssystem.util.TwilioSMSService;
+
 import javassist.NotFoundException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -21,6 +23,9 @@ import org.springframework.web.bind.annotation.*;
 
 import javax.naming.AuthenticationException;
 import javax.validation.Valid;
+import com.meesho.smssystem.model.MessageLog;
+import com.meesho.smssystem.repository.MessageLogRepository;
+import java.time.LocalDateTime;
 
 @RestController
 @RequestMapping("/v1/sms")
@@ -38,6 +43,9 @@ public class SMSController {
         this.ismsRequestService = ismsRequestService;
         this.authenticationService = authenticationService;
     }
+
+    @Autowired
+    private MessageLogRepository messageLogRepository;
 
     @PostMapping("")
     ResponseEntity<?> getSMSById (@Valid @RequestBody GetSMSByIdRequest getSmsByIdRequest
@@ -70,30 +78,46 @@ public class SMSController {
     }
 
     @PostMapping("/send")
-    ResponseEntity<?> sendSMS (@Valid @RequestBody SendSMSRequest sendSMSRequest
-            , @RequestHeader(required = false, value = authenticationFieldName) String authKey) {
+    ResponseEntity<?> sendSMS (@Valid @RequestBody SendSMSRequest sendSMSRequest,
+                           @RequestHeader(required = false, value = authenticationFieldName) String authKey) {
         final SendSMSResponse sendSMSResponse;
         try {
             authenticationService.authenticator(authKey);
             sendSMSResponse = ismsRequestService.sendSMSProcess(sendSMSRequest);
-            return new ResponseEntity<>(sendSMSResponse,sendSMSResponse.getHttpStatus());
+
+            // Only send SMS directly if deliveryChannel is null or SMS (for backward compatibility)
+            if (sendSMSRequest.getDeliveryChannel() == null || sendSMSRequest.getDeliveryChannel() == SendSMSRequest.DeliveryChannel.SMS) {
+                String result = TwilioSMSService.sendSMS(
+                    sendSMSRequest.getPhone_number(),
+                    sendSMSRequest.getMessage()
+                );
+                System.out.println(result);
+            }
+
+            // ✅ Log the message to DB
+            MessageLog log = new MessageLog();
+            log.setPhoneNumber(sendSMSRequest.getPhone_number());
+            log.setMessage(sendSMSRequest.getMessage());
+            log.setStatus(sendSMSResponse.getComments()); // Use comments as status
+            log.setReqId(sendSMSResponse.getReqId() != null ? sendSMSResponse.getReqId().toString() : null);
+            log.setSentAt(LocalDateTime.now());
+            messageLogRepository.save(log);
+
+            return new ResponseEntity<>(sendSMSResponse, sendSMSResponse.getHttpStatus());
         }
-        catch (AuthenticationException | NullPointerException  exception){
-            // NullPointerException is thrown by String.equals() method if String is Null
+        catch (AuthenticationException | NullPointerException exception) {
             ErrorResponse errorResponse = ErrorResponse.builder()
-                    .error(authenticationErrorMessage)
-                    .build();
+                .error(authenticationErrorMessage)
+                .build();
             return new ResponseEntity<>(errorResponse, HttpStatus.UNAUTHORIZED);
         }
-        catch (InvalidDataAccessApiUsageException exception){
-            return new ResponseEntity<>(exception.getCause().getMessage(),HttpStatus.BAD_REQUEST);
+        catch (InvalidDataAccessApiUsageException exception) {
+            return new ResponseEntity<>(exception.getCause().getMessage(), HttpStatus.BAD_REQUEST);
         }
-        catch (Exception exception){
+        catch (Exception exception) {
             logger.error(exception);
-            return new ResponseEntity<>(exception.getMessage(),HttpStatus.INTERNAL_SERVER_ERROR);
-
+            return new ResponseEntity<>(exception.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
         }
-
     }
 
     @PostMapping("/get-by-text")
