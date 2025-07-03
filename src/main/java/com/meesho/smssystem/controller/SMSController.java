@@ -85,12 +85,14 @@ public class SMSController {
             authenticationService.authenticator(authKey);
             sendSMSResponse = ismsRequestService.sendSMSProcess(sendSMSRequest);
 
-            // ✅ Send Real SMS via Twilio
-            String result = TwilioSMSService.sendSMS(
-                sendSMSRequest.getPhone_number(),
-                sendSMSRequest.getMessage()
-            );
-            System.out.println(result);
+            // Only send SMS directly if deliveryChannel is null or SMS (for backward compatibility)
+            if (sendSMSRequest.getDeliveryChannel() == null || sendSMSRequest.getDeliveryChannel() == SendSMSRequest.DeliveryChannel.SMS) {
+                String result = TwilioSMSService.sendSMS(
+                    sendSMSRequest.getPhone_number(),
+                    sendSMSRequest.getMessage()
+                );
+                System.out.println(result);
+            }
 
             // ✅ Log the message to DB
             MessageLog log = new MessageLog();

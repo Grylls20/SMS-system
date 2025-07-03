@@ -8,7 +8,7 @@ public class TwilioSMSService {
 
     // Replace with real Twilio credentials
     private static final String ACCOUNT_SID = "ACc29ded2f1f0e6643f4081608a7df8392";
-    private static final String AUTH_TOKEN = "79c33fa989647da532608fec7315c558";
+    private static final String AUTH_TOKEN = "936aec272382085922a9028cb8d41ea1";
     private static final String FROM_PHONE = "+18564925332"; // Your Twilio phone number
 
     public static String sendSMS(String to, String body) {
