@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Send SMS</title>
+    <style>
+        body {
+            font-family: Arial;
+            margin: 40px;
+            background-color: #f5f5f5;
+        }
+
+        form {
+            background: greenyellow;
+            padding: 20px;
+            width: 300px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        input,
+        textarea {
+            width: 100%;
+            margin-top: 10px;
+            padding: 8px;
+        }
+
+        button {
+            margin-top: 15px;
+            width: 100%;
+            padding: 10px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <h2>Send SMS</h2>
+    <form id="smsForm">
+        <input type="text" id="token" placeholder="Auth Token" required />
+        <input type="text" id="phone_number" placeholder="Phone Number" required />
+        <textarea id="message" placeholder="Enter your message" required></textarea>
+        <button type="submit">Send SMS</button>
+    </form>
+
+    <script>
+        document.getElementById('smsForm').addEventListener('submit', async function (e) {
+            e.preventDefault();
+
+            const phone = document.getElementById('phone_number').value;
+            const message = document.getElementById('message').value;
+            const token = document.getElementById('token').value;
+
+            const payload = {
+                phone_number: phone,
+                message: message
+            };
+
+            try {
+                const res = await fetch('/v1/sms/send', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': token // Replace with actual field name if different in properties
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                const text = await res.text();
+                if (res.ok) {
+                    alert("✅ SMS Sent: " + text);
+                } else {
+                    alert("❌ Error " + res.status + ": " + text);
+                }
+            } catch (err) {
+                alert("❌ Request Failed: " + err.message);
+            }
+        });
+    </script>
+</body>
+</html>
