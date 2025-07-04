@@ -10,8 +10,8 @@ import com.meesho.smssystem.repository.database.ISMSRequestRepository;
 import com.meesho.smssystem.repository.search_engine.SearchEngineRepository;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
 
 import java.util.Optional;
@@ -25,8 +25,7 @@ public class ConsumerService {
     private final SearchEngineRepository searchEngineRepository;
     private SMSRecord smsRecord;
 
-    private final String kafkaTopicName = "${spring.kafka.sms.topic-name}";
-    private final String kafkaGroupId =  "${spring.kafka.consumer.group-id}";
+    private final String smsQueue = "${rabbitmq.sms.queue}";
 
     private static final Logger logger = LogManager.getLogger(ConsumerService.class);
 
@@ -37,7 +36,7 @@ public class ConsumerService {
         this.searchEngineRepository = searchEngineRepository;
     }
 
-    @KafkaListener(topics = kafkaTopicName, groupId = kafkaGroupId)
+    @RabbitListener(queues = "${rabbitmq.sms.queue}")
     public void consume(Long requestId) {
         try{
             Optional<SMSRecord> optionalSMSRecord = ismsRequestRepository.findById(requestId);
