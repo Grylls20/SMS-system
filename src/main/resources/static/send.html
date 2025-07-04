@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Send SMS or Email</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 2em; }
+        label { display: block; margin-top: 1em; }
+        input, select, textarea { width: 300px; padding: 0.5em; }
+        #response { margin-top: 2em; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h2>Send SMS or Email</h2>
+    <form id="optionForm">
+        <label>Select Delivery Option:</label>
+        <input type="radio" id="smsOnly" name="deliveryOption" value="SMS" required> SMS Only<br>
+        <input type="radio" id="emailOnly" name="deliveryOption" value="EMAIL"> Email Only<br>
+        <input type="radio" id="both" name="deliveryOption" value="BOTH"> SMS and Email Both<br>
+        <button type="submit">Next</button>
+    </form>
+    <div id="dialogueBox" style="display:none; margin-top:2em;"></div>
+    <div id="response"></div>
+    <script>
+        const optionForm = document.getElementById('optionForm');
+        const dialogueBox = document.getElementById('dialogueBox');
+        const responseDiv = document.getElementById('response');
+
+        optionForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const selected = document.querySelector('input[name="deliveryOption"]:checked').value;
+            let formHtml = '';
+            if (selected === 'SMS') {
+                formHtml = `
+                    <form id='smsForm'>
+                        <label>Phone Number:<input type='text' id='phone_number' name='phone_number' required></label><br>
+                        <label>Message:<textarea id='message' name='message' required></textarea></label><br>
+                        <button type='submit'>Send SMS</button>
+                    </form>
+                `;
+            } else if (selected === 'EMAIL') {
+                formHtml = `
+                    <form id='emailForm'>
+                        <label>Email:<input type='email' id='email' name='email' required></label><br>
+                        <label>Message:<textarea id='message' name='message' required></textarea></label><br>
+                        <button type='submit'>Send Email</button>
+                    </form>
+                `;
+            } else {
+                formHtml = `
+                    <form id='bothForm'>
+                        <label>Phone Number:<input type='text' id='phone_number' name='phone_number' required></label><br>
+                        <label>Email:<input type='email' id='email' name='email' required></label><br>
+                        <label>Message:<textarea id='message' name='message' required></textarea></label><br>
+                        <button type='submit'>Send SMS and Email</button>
+                    </form>
+                `;
+            }
+            dialogueBox.innerHTML = formHtml;
+            dialogueBox.style.display = '';
+            responseDiv.textContent = '';
+            // Attach event listeners for the new forms
+            if (selected === 'SMS') attachSmsForm();
+            else if (selected === 'EMAIL') attachEmailForm();
+            else attachBothForm();
+        });
+
+        function attachSmsForm() {
+            document.getElementById('smsForm').addEventListener('submit', async function(e) {
+                e.preventDefault();
+                responseDiv.textContent = 'Sending...';
+                const data = {
+                    phone_number: this.phone_number.value,
+                    message: this.message.value,
+                    deliveryChannel: 'SMS'
+                };
+                await sendRequest(data);
+            });
+        }
+        function attachEmailForm() {
+            document.getElementById('emailForm').addEventListener('submit', async function(e) {
+                e.preventDefault();
+                responseDiv.textContent = 'Sending...';
+                const data = {
+                    email: this.email.value,
+                    message: this.message.value,
+                    deliveryChannel: 'EMAIL'
+                };
+                await sendRequest(data);
+            });
+        }
+        function attachBothForm() {
+            document.getElementById('bothForm').addEventListener('submit', async function(e) {
+                e.preventDefault();
+                responseDiv.textContent = 'Sending...';
+                const data = {
+                    phone_number: this.phone_number.value,
+                    email: this.email.value,
+                    message: this.message.value,
+                    deliveryChannel: 'BOTH'
+                };
+                await sendRequest(data);
+            });
+        }
+        async function sendRequest(data) {
+            // Remove undefined or empty fields
+            Object.keys(data).forEach(key => {
+                if (data[key] === undefined || data[key] === null || data[key] === '') {
+                    delete data[key];
+                }
+            });
+            try {
+                const res = await fetch('/v1/sms/send', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'piyush123'
+                    },
+                    body: JSON.stringify(data)
+                });
+                const text = await res.text();
+                responseDiv.textContent = `Status: ${res.status}\n${text}`;
+            } catch (err) {
+                responseDiv.textContent = 'Error: ' + err;
+            }
+        }
+    </script>
+</body>
+</html>
