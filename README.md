@@ -8,7 +8,7 @@ The SMS System is built on a microservices-based architecture, designed for scal
 
 - **Spring Boot Application:** The heart of the system, handling all business logic, API requests, and coordination between the other services.
 - **MySQL Database:** The primary data store for contacts, message logs, and other essential data.
-- **Redis:** Used for caching frequently accessed data and managing blacklisted numbers for fast lookups.
+- **RaabitMQ:** Used for caching frequently accessed data and managing blacklisted numbers for fast lookups.
 - **Apache Kafka:** A distributed streaming platform that enables asynchronous communication and decouples the sending of SMS messages from the main application flow.
 - **Elasticsearch:** A powerful search and analytics engine used for full-text search on SMS messages.
 - **Twilio:** Integrated for sending and receiving SMS messages.
@@ -21,7 +21,7 @@ All services are containerized using Docker and orchestrated with Docker Compose
 - Spring Boot
 - Apache Kafka
 - MySQL
-- Redis
+- RabbitMQ
 - Elasticsearch
 - Twilio
 - Log4j2
@@ -54,7 +54,7 @@ Create a `.env` file by copying the `sample.env` file:
 cp sample.env .env
 ```
 
-Update the `.env` file with your specific configurations for the database, Redis, Kafka, Elasticsearch, and Twilio credentials.
+Update the `.env` file with your specific configurations for the database, RabbitMQ, Kafka, Elasticsearch, and Twilio credentials.
 
 ### 3. Build the Application
 
@@ -72,7 +72,7 @@ Start all the services using Docker Compose:
 docker-compose up -d
 ```
 
-This will start the Spring Boot application, MySQL, Redis, Kafka, and Elasticsearch in detached mode. The application will be accessible at `http://localhost:8080`.
+This will start the Spring Boot application, MySQL, RabbitMQ, Kafka, and Elasticsearch in detached mode. The application will be accessible at `http://localhost:8080`.
 
 ## API Endpoints
 
